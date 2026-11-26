@@ -69,75 +69,85 @@ enum TicketEventType {
 }
 
 model Customer {
-  id          String   @id @default(cuid())
-  phone       String   @unique
+  id          String     @id @default(cuid())
+  phone       String     @unique
   name        String?
   // Moderación: si está setado, el bot no envía auto-respuestas para este cliente (agente responde manual)
   botPausedAt DateTime?
   // Información legal
-  dni         String?  // DNI o CUIT/CUIL
+  dni         String? // DNI o CUIT/CUIL
   email       String?
-  address     String?  // Dirección completa
+  address     String? // Dirección completa
   dateOfBirth DateTime? // Fecha de nacimiento
-  notes       String?  // Notas adicionales sobre el cliente
+  notes       String? // Notas adicionales sobre el cliente
+  /// Abonos: si el teléfono pertenece a un consorcio (administrador, miembro del consejo, intendente),
+  /// las consultas que entren por WhatsApp se imputan al abono vigente de ese consorcio.
+  consorcioId String?
+  consorcio   Consorcio? @relation(fields: [consorcioId], references: [id], onDelete: SetNull)
   tickets     Ticket[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([dni])
   @@index([email])
+  @@index([consorcioId])
 }
 
 model AgentUser {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  phone          String    // Número de teléfono para notificaciones por WhatsApp
+  id              String       @id @default(cuid())
+  email           String       @unique
+  name            String
+  phone           String // Número de teléfono para notificaciones por WhatsApp
   /// Login backoffice (único, sin espacios; se guarda en minúsculas)
-  username       String?   @unique
+  username        String?      @unique
   /// bcrypt; null = usuario sin acceso al backoffice hasta que un admin defina contraseña
-  passwordHash   String?
-  role           AgentRole
+  passwordHash    String?
+  role            AgentRole
   // Información profesional
-  matricula      String?   // Matrícula profesional del abogado
-  especializacion String?  // Especialización legal (ej: "Derecho Laboral", "Derecho Civil")
-  tickets        Ticket[]  @relation("AgentAssignments")
-  ticketReads    TicketRead[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  matricula       String? // Matrícula profesional del abogado
+  especializacion String? // Especialización legal (ej: "Derecho Laboral", "Derecho Civil")
+  tickets         Ticket[]     @relation("AgentAssignments")
+  ticketReads     TicketRead[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Ticket {
-  id                String          @id @default(cuid())
-  code              String          @unique
-  customerId        String
-  customer          Customer        @relation(fields: [customerId], references: [id])
-  contactName       String          // Nombre de la persona que contacta (ej: "Juan Pérez")
-  title             String
-  status            TicketStatus
-  priority          TicketPriority
-  category          TicketCategory
-  channel           TicketChannel
-  assignedToUserId  String?
-  assignedTo        AgentUser?      @relation("AgentAssignments", fields: [assignedToUserId], references: [id])
-  lastMessageAt     DateTime        @default(now())
+  id                 String          @id @default(cuid())
+  code               String          @unique
+  customerId         String
+  customer           Customer        @relation(fields: [customerId], references: [id])
+  contactName        String // Nombre de la persona que contacta (ej: "Juan Pérez")
+  title              String
+  status             TicketStatus
+  priority           TicketPriority
+  category           TicketCategory
+  channel            TicketChannel
+  assignedToUserId   String?
+  assignedTo         AgentUser?      @relation("AgentAssignments", fields: [assignedToUserId], references: [id])
+  lastMessageAt      DateTime        @default(now())
   // AI-generated summaries
-  aiSummary         String?         // Resumen de la conversación generado por IA
-  resolution        String?         // Conclusión de cómo se resolvió el caso
-  resolvedByAI      Boolean         @default(false) // Si fue resuelto automáticamente por IA
+  aiSummary          String? // Resumen de la conversación generado por IA
+  resolution         String? // Conclusión de cómo se resolvió el caso
+  resolvedByAI       Boolean         @default(false) // Si fue resuelto automáticamente por IA
   // Información procesal legal
-  expedienteNumber  String?         // Número de expediente/juicio
-  court             String?         // Juzgado/Tribunal
-  legalType         String?         // Tipo específico de caso (ej: "Despido", "Accidente", "Contrato")
-  amount            Decimal?        // Monto en disputa (Decimal para precisión)
-  importantDates    Json?          // Fechas importantes: { audiencia: Date, vencimiento: Date, etc }
-  caseNotes         String?         // Notas internas del abogado sobre el caso
-  messages          TicketMessage[]
-  events            TicketEvent[]
-  tags              TicketTag[]
-  reads             TicketRead[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  expedienteNumber   String? // Número de expediente/juicio
+  court              String? // Juzgado/Tribunal
+  legalType          String? // Tipo específico de caso (ej: "Despido", "Accidente", "Contrato")
+  amount             Decimal? // Monto en disputa (Decimal para precisión)
+  importantDates     Json? // Fechas importantes: { audiencia: Date, vencimiento: Date, etc }
+  caseNotes          String? // Notas internas del abogado sobre el caso
+  /// Abono al que se imputa la consulta (null = consulta fuera de abono / cliente particular)
+  subscriptionId     String?
+  subscription       Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  /// false = el abogado decidió no descontarla del cupo (ej. consulta duplicada o de seguimiento)
+  countsAgainstQuota Boolean         @default(true)
+  messages           TicketMessage[]
+  events             TicketEvent[]
+  tags               TicketTag[]
+  reads              TicketRead[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   @@index([status])
   @@index([priority])
@@ -146,6 +156,7 @@ model Ticket {
   @@index([lastMessageAt])
   @@index([expedienteNumber])
   @@index([category])
+  @@index([subscriptionId, createdAt])
 }
 
 model TicketMessage {
@@ -155,7 +166,7 @@ model TicketMessage {
   direction         MessageDirection
   from              MessageFrom
   text              String
-  attachments       Json?            // Array de { url, type, name } para imágenes y archivos
+  attachments       Json? // Array de { url, type, name } para imágenes y archivos
   rawPayload        Json
   externalMessageId String?          @unique
   createdAt         DateTime         @default(now())
@@ -164,12 +175,12 @@ model TicketMessage {
 }
 
 model TicketEvent {
-  id        String           @id @default(cuid())
+  id        String          @id @default(cuid())
   ticketId  String
-  ticket    Ticket           @relation(fields: [ticketId], references: [id])
+  ticket    Ticket          @relation(fields: [ticketId], references: [id])
   type      TicketEventType
   payload   Json
-  createdAt DateTime         @default(now())
+  createdAt DateTime        @default(now())
 
   @@index([ticketId, createdAt])
 }
@@ -206,8 +217,8 @@ model TicketTag {
 // Registros históricos importados desde Excel (carga única / legado)
 model Legado {
   id        String   @id @default(cuid())
-  data      Json     // Fila completa del Excel (todas las columnas)
-  source    String?  // Nombre del archivo origen (ej: "reclamos-2024.xlsx")
+  data      Json // Fila completa del Excel (todas las columnas)
+  source    String? // Nombre del archivo origen (ej: "reclamos-2024.xlsx")
   createdAt DateTime @default(now())
 
   @@index([createdAt])
@@ -217,12 +228,157 @@ model Legado {
 model CaseType {
   id        String   @id @default(cuid())
   slug      String   @unique // para URL: accidente-transito
-  label     String   // etiqueta en UI: "Accidente de tránsito"
-  legalType String   // valor en Ticket.legalType (debe coincidir)
+  label     String // etiqueta en UI: "Accidente de tránsito"
+  legalType String // valor en Ticket.legalType (debe coincidir)
   color     String   @default("slate-500") // clase Tailwind para el indicador (ej: amber-500)
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([order])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Abonos de asesoramiento jurídico a consorcios / barrios cerrados / countries
+// ─────────────────────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED // p. ej. por falta de pago: las consultas siguen entrando pero se marcan
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PENDING // "Vencida" se calcula: PENDING con dueDate pasada
+  PAID
+  WAIVED // bonificada / condonada
+}
+
+// ── Consorcio y Administradora: MODELO COMPARTIDO con el módulo de cobranza de expensas ──
+// La tabla la crea la migración 20261126180000_add_cobranza_expensas (rama de cobranzas).
+// Esta copia es solo para compilar esta rama por separado; al integrar, queda la definición de
+// cobranzas + las relaciones `customers` y `subscriptions` de abajo.
+// (Omitidas aquí: Consorcio.unidades y Consorcio.cobranzas, que pertenecen a cobranzas.)
+
+enum TipoConsorcio {
+  PROPIEDAD_HORIZONTAL // arts. 2037 y ss. CCyC
+  BARRIO_CERRADO // Conjunto inmobiliario, arts. 2073 y ss. CCyC
+  COUNTRY
+  CLUB_DE_CHACRAS
+  OTRO
+}
+
+enum Jurisdiccion {
+  CABA
+  PBA
+  OTRA
+}
+
+model Administradora {
+  id          String      @id @default(cuid())
+  razonSocial String
+  cuit        String?
+  matricula   String?
+  contacto    String?
+  email       String?
+  phone       String?
+  domicilio   String?
+  notes       String?
+  consorcios  Consorcio[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Consorcio {
+  id                           String          @id @default(cuid())
+  nombre                       String
+  tipo                         TipoConsorcio   @default(PROPIEDAD_HORIZONTAL)
+  cuit                         String?         @unique
+  domicilio                    String?
+  localidad                    String?
+  cantidadUnidades             Int?
+  contactoNombre               String?
+  contactoEmail                String?
+  jurisdiccion                 Jurisdiccion    @default(CABA)
+  administradoraId             String?
+  administradora               Administradora? @relation(fields: [administradoraId], references: [id])
+  tasaMoratoriaAnual           Decimal         @default(0) @db.Decimal(7, 3)
+  tasaPunitoriaAnual           Decimal         @default(0) @db.Decimal(7, 3)
+  diaVencimiento               Int             @default(10)
+  prescripcionMeses            Int             @default(24)
+  honorariosExtrajudicialesPct Decimal?        @db.Decimal(5, 2)
+  notes                        String?
+  createdAt                    DateTime        @default(now())
+  updatedAt                    DateTime        @updatedAt
+  // ── Relaciones que agrega el módulo de abonos ──
+  customers                    Customer[] // Teléfonos de WhatsApp autorizados a consultar
+  subscriptions                Subscription[]
+
+  @@index([administradoraId])
+}
+
+/// Plan de abono (catálogo): precio mensual y consultas incluidas
+model AdvisoryPlan {
+  id              String         @id @default(cuid())
+  name            String         @unique
+  description     String?
+  monthlyFee      Decimal        @db.Decimal(14, 2)
+  /// Consultas incluidas por mes calendario; null = ilimitadas
+  includedQueries Int?
+  /// Precio por consulta adicional por encima del cupo (informativo en v1)
+  overageFee      Decimal?       @db.Decimal(14, 2)
+  active          Boolean        @default(true)
+  subscriptions   Subscription[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+/// Abono contratado por un consorcio. Precio y cupo se copian del plan al contratar,
+/// para que un cambio en el catálogo no altere contratos vigentes.
+model Subscription {
+  id              String             @id @default(cuid())
+  consorcioId     String
+  consorcio       Consorcio          @relation(fields: [consorcioId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            AdvisoryPlan       @relation(fields: [planId], references: [id])
+  status          SubscriptionStatus @default(ACTIVE)
+  startDate       DateTime // Primer mes facturado = mes de startDate
+  endDate         DateTime? // Último día de vigencia (null = sin plazo)
+  monthlyFee      Decimal            @db.Decimal(14, 2)
+  includedQueries Int?
+  overageFee      Decimal?           @db.Decimal(14, 2)
+  /// Día del mes en que vence la cuota (1-28)
+  dueDay          Int                @default(10)
+  notes           String?
+  installments    Installment[]
+  tickets         Ticket[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([consorcioId])
+  @@index([status])
+}
+
+/// Cuota mensual del abono
+model Installment {
+  id             String            @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  /// Período "AAAA-MM"
+  period         String
+  amount         Decimal           @db.Decimal(14, 2)
+  dueDate        DateTime
+  status         InstallmentStatus @default(PENDING)
+  paidAt         DateTime?
+  paidAmount     Decimal?          @db.Decimal(14, 2)
+  paymentMethod  String? // Transferencia, efectivo, cheque, etc.
+  paymentRef     String? // Nº de comprobante / operación
+  invoiceNumber  String? // Nº de factura emitida (si se facturó)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([subscriptionId, period])
+  @@index([dueDate])
+  @@index([status])
 }

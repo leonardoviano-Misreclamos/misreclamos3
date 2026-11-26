@@ -18,6 +18,8 @@ import { LegalTypeDropdown } from "@/components/tickets/LegalTypeDropdown";
 import { AcceptCaseButton } from "@/components/tickets/AcceptCaseButton";
 import { CopyButton } from "@/components/tickets/CopyButton";
 import { TicketQuickActions } from "@/components/tickets/TicketQuickActions";
+import { QuotaToggle } from "@/components/abonos/forms";
+import { ticketAbonoInfo, periodLabel } from "@/lib/abonos";
 
 export default async function TicketDetail({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
@@ -45,6 +47,8 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
   }
 
   await markTicketRead(session.user!, ticket.id);
+
+  const abono = await ticketAbonoInfo(ticket).catch(() => null);
 
   // Obtener lista de agentes para el dropdown
   const agentes = await prisma.agentUser.findMany({
@@ -96,6 +100,32 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
                 <CaseTypeIcon legalType={ticket.legalType} />
                 {ticket.legalType || "Sin caso"}
               </span>
+              {abono ? (
+                <span
+                  className={`inline-flex flex-wrap items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
+                    abono.overdueInstallments > 0 || abono.status !== "ACTIVE" || abono.quota.overage > 0
+                      ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+                      : "bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200"
+                  }`}
+                >
+                  {isAdminUser ? (
+                    <Link href={`/abonos/${abono.subscriptionId}`} className="font-semibold hover:underline">
+                      Abono {abono.planName} · {abono.consortiumName}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">Abono {abono.planName} · {abono.consortiumName}</span>
+                  )}
+                  <span>
+                    · {periodLabel(abono.period)}: {abono.quota.label} consultas
+                    {abono.quota.overage > 0 ? ` (+${abono.quota.overage} excedente)` : ""}
+                  </span>
+                  {abono.status !== "ACTIVE" ? <span>· abono suspendido</span> : null}
+                  {abono.overdueInstallments > 0 ? <span>· {abono.overdueInstallments} cuota(s) vencida(s)</span> : null}
+                  <span>
+                    · <QuotaToggle ticketId={ticket.id} counts={abono.countsAgainstQuota} />
+                  </span>
+                </span>
+              ) : null}
               {ticket.customer?.phone ? (
                 <a
                   href={`https://wa.me/${ticket.customer.phone.replace(/\D/g, "")}`}
