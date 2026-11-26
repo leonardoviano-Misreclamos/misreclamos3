@@ -119,7 +119,7 @@ export function PlanActiveToggle({ id, active }: { id: string; active: boolean }
 
 /* ───────────── Consorcios ───────────── */
 
-export function CreateConsortiumForm() {
+export function CreateConsortiumForm({ administradoras }: { administradoras: { id: string; razonSocial: string }[] }) {
   const { call, loading, error } = useApi();
   return (
     <Card title="Nuevo consorcio / barrio">
@@ -140,15 +140,16 @@ export function CreateConsortiumForm() {
       >
         <div>
           <label className={label}>Nombre *</label>
-          <input name="name" required className={input} placeholder="Consorcio Av. Santa Fe 1234 / Barrio Los Robles" />
+          <input name="nombre" required className={input} placeholder="Consorcio Av. Santa Fe 1234 / Barrio Los Robles" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label}>Tipo</label>
-            <select name="type" className={input} defaultValue="EDIFICIO">
-              <option value="EDIFICIO">Consorcio (PH)</option>
+            <select name="tipo" className={input} defaultValue="PROPIEDAD_HORIZONTAL">
+              <option value="PROPIEDAD_HORIZONTAL">Consorcio (PH)</option>
               <option value="BARRIO_CERRADO">Barrio cerrado</option>
               <option value="COUNTRY">Country</option>
+              <option value="CLUB_DE_CHACRAS">Club de chacras</option>
               <option value="OTRO">Otro</option>
             </select>
           </div>
@@ -160,32 +161,45 @@ export function CreateConsortiumForm() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label}>Domicilio</label>
-            <input name="address" className={input} />
+            <input name="domicilio" className={input} />
           </div>
           <div>
             <label className={label}>Localidad / partido</label>
-            <input name="locality" className={input} />
+            <input name="localidad" className={input} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label}>Administradora</label>
-            <input name="administrator" className={input} />
+            <select name="administradoraId" className={input} defaultValue="">
+              <option value="">— Sin administradora —</option>
+              {administradoras.map((a) => (
+                <option key={a.id} value={a.id}>{a.razonSocial}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={label}>UF / lotes</label>
-            <input name="unitsCount" type="number" min="1" className={input} />
+            <input name="cantidadUnidades" type="number" min="1" className={input} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label}>Contacto</label>
-            <input name="contactName" className={input} />
+            <input name="contactoNombre" className={input} />
           </div>
           <div>
             <label className={label}>Email</label>
-            <input name="contactEmail" type="email" className={input} />
+            <input name="contactoEmail" type="email" className={input} />
           </div>
+        </div>
+        <div>
+          <label className={label}>Jurisdicción</label>
+          <select name="jurisdiccion" className={input} defaultValue="CABA">
+            <option value="CABA">CABA</option>
+            <option value="PBA">Provincia de Buenos Aires</option>
+            <option value="OTRA">Otra</option>
+          </select>
         </div>
         <div>
           <label className={label}>Teléfonos WhatsApp autorizados (uno por línea)</label>
@@ -199,10 +213,10 @@ export function CreateConsortiumForm() {
 }
 
 export function PhoneManager({
-  consortiumId,
+  consorcioId,
   phones,
 }: {
-  consortiumId: string;
+  consorcioId: string;
   phones: { id: string; phone: string; name: string | null }[];
 }) {
   const { call, loading, error } = useApi();
@@ -220,7 +234,7 @@ export function PhoneManager({
             <button
               className={btnGhost}
               disabled={loading}
-              onClick={() => call(`/api/abonos/consorcios/${consortiumId}/telefonos?customerId=${p.id}`, "DELETE")}
+              onClick={() => call(`/api/abonos/consorcios/${consorcioId}/telefonos?customerId=${p.id}`, "DELETE")}
             >
               Quitar
             </button>
@@ -232,7 +246,7 @@ export function PhoneManager({
         onSubmit={async (e) => {
           e.preventDefault();
           const f = e.currentTarget;
-          if (await call(`/api/abonos/consorcios/${consortiumId}/telefonos`, "POST", formToObject(f))) f.reset();
+          if (await call(`/api/abonos/consorcios/${consorcioId}/telefonos`, "POST", formToObject(f))) f.reset();
         }}
       >
         <input name="phone" required placeholder="5491112345678" className={`${input} flex-1 min-w-[10rem]`} />
@@ -283,7 +297,7 @@ export function CreateSubscriptionForm({
       >
         <div>
           <label className={label}>Consorcio *</label>
-          <select name="consortiumId" required className={input} defaultValue={defaultConsortiumId ?? ""}>
+          <select name="consorcioId" required className={input} defaultValue={defaultConsortiumId ?? ""}>
             <option value="" disabled>Elegir…</option>
             {consortia.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>

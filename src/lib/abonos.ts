@@ -91,9 +91,10 @@ export const subscriptionStatusLabels: Record<Subscription["status"], string> = 
 };
 
 export const consortiumTypeLabels = {
-  EDIFICIO: "Consorcio (PH)",
+  PROPIEDAD_HORIZONTAL: "Consorcio (PH)",
   BARRIO_CERRADO: "Barrio cerrado",
   COUNTRY: "Country",
+  CLUB_DE_CHACRAS: "Club de chacras",
   OTRO: "Otro",
 } as const;
 
@@ -158,12 +159,12 @@ export async function ensureAllInstallments(now = new Date()): Promise<void> {
 export async function findSubscriptionForCustomer(customerId: string, now = new Date()) {
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
-    select: { consortiumId: true },
+    select: { consorcioId: true },
   });
-  if (!customer?.consortiumId) return null;
+  if (!customer?.consorcioId) return null;
   return prisma.subscription.findFirst({
     where: {
-      consortiumId: customer.consortiumId,
+      consorcioId: customer.consorcioId,
       status: { in: ["ACTIVE", "SUSPENDED"] },
       startDate: { lte: now },
       OR: [{ endDate: null }, { endDate: { gte: now } }],
@@ -199,7 +200,7 @@ export async function ticketAbonoInfo(ticket: { id: string; subscriptionId: stri
   if (!ticket.subscriptionId) return null;
   const sub = await prisma.subscription.findUnique({
     where: { id: ticket.subscriptionId },
-    include: { consortium: { select: { id: true, name: true } }, plan: { select: { name: true } } },
+    include: { consorcio: { select: { id: true, nombre: true } }, plan: { select: { name: true } } },
   });
   if (!sub) return null;
   const period = periodOf(ticket.createdAt);
@@ -209,8 +210,8 @@ export async function ticketAbonoInfo(ticket: { id: string; subscriptionId: stri
   });
   return {
     subscriptionId: sub.id,
-    consortiumId: sub.consortium.id,
-    consortiumName: sub.consortium.name,
+    consorcioId: sub.consorcio.id,
+    consortiumName: sub.consorcio.nombre,
     planName: sub.plan.name,
     status: sub.status,
     period,

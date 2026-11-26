@@ -10,16 +10,22 @@ export const dynamic = "force-dynamic";
 
 export default async function ConsorciosPage() {
   await requireAdmin();
-  const consortia = await prisma.consortium.findMany({
-    orderBy: { name: "asc" },
+  const consortia = await prisma.consorcio.findMany({
+    orderBy: { nombre: "asc" },
     include: {
       _count: { select: { customers: true } },
+      administradora: { select: { razonSocial: true } },
       subscriptions: {
         where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
         include: { plan: { select: { name: true } } },
         take: 1,
       },
     },
+  });
+
+  const administradoras = await prisma.administradora.findMany({
+    select: { id: true, razonSocial: true },
+    orderBy: { razonSocial: "asc" },
   });
 
   return (
@@ -32,7 +38,7 @@ export default async function ConsorciosPage() {
         <AbonosNav active="/abonos/consorcios" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <CreateConsortiumForm />
+            <CreateConsortiumForm administradoras={administradoras} />
           </div>
           <div className="lg:col-span-2 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
             <table className="min-w-full text-sm">
@@ -54,11 +60,11 @@ export default async function ConsorciosPage() {
                   return (
                     <tr key={c.id}>
                       <td className="px-4 py-2">
-                        <div className="font-medium text-slate-900">{c.name}</div>
-                        <div className="text-xs text-slate-500">{[c.address, c.locality].filter(Boolean).join(", ")}{c.cuit ? ` · CUIT ${c.cuit}` : ""}</div>
+                        <div className="font-medium text-slate-900">{c.nombre}</div>
+                        <div className="text-xs text-slate-500">{[c.domicilio, c.localidad].filter(Boolean).join(", ")}{c.cuit ? ` · CUIT ${c.cuit}` : ""}</div>
                       </td>
-                      <td className="px-4 py-2">{consortiumTypeLabels[c.type]}</td>
-                      <td className="px-4 py-2">{c.administrator ?? "—"}</td>
+                      <td className="px-4 py-2">{consortiumTypeLabels[c.tipo]}</td>
+                      <td className="px-4 py-2">{c.administradora?.razonSocial ?? "—"}</td>
                       <td className="px-4 py-2">{c._count.customers}</td>
                       <td className="px-4 py-2">
                         {sub ? (

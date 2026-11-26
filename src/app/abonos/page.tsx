@@ -31,27 +31,27 @@ export default async function AbonosPage({ searchParams }: { searchParams: Promi
     prisma.subscription.findMany({
       where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
       include: {
-        consortium: { select: { id: true, name: true } },
+        consorcio: { select: { id: true, nombre: true } },
         plan: { select: { name: true } },
         installments: { where: { period } },
       },
-      orderBy: { consortium: { name: "asc" } },
+      orderBy: { consorcio: { nombre: "asc" } },
     }),
     prisma.installment.findMany({
       where: { status: "PENDING", dueDate: { lt: now } },
-      include: { subscription: { include: { consortium: { select: { name: true } } } } },
+      include: { subscription: { include: { consorcio: { select: { nombre: true } } } } },
       orderBy: { dueDate: "asc" },
     }),
     prisma.installment.findMany({
       where: { status: "PENDING", dueDate: { gte: now, lte: in15 } },
-      include: { subscription: { include: { consortium: { select: { name: true } } } } },
+      include: { subscription: { include: { consorcio: { select: { nombre: true } } } } },
       orderBy: { dueDate: "asc" },
     }),
     prisma.installment.aggregate({
       where: { status: "PAID", paidAt: { gte: from, lt: to } },
       _sum: { paidAmount: true },
     }),
-    prisma.consortium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.consorcio.findMany({ select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
     prisma.advisoryPlan.findMany({ where: { active: true }, orderBy: { monthlyFee: "asc" } }),
     prisma.ticket.groupBy({
       by: ["subscriptionId"],
@@ -110,7 +110,7 @@ export default async function AbonosPage({ searchParams }: { searchParams: Promi
                     return (
                       <tr key={s.id} className="hover:bg-slate-50">
                         <td className="px-4 py-2">
-                          <Link href={`/abonos/${s.id}`} className="font-medium text-indigo-700 hover:underline">{s.consortium.name}</Link>
+                          <Link href={`/abonos/${s.id}`} className="font-medium text-indigo-700 hover:underline">{s.consorcio.nombre}</Link>
                           {s.status !== "ACTIVE" ? <span className="ml-2"><StatePill state={s.status} /></span> : null}
                         </td>
                         <td className="px-4 py-2">{s.plan.name}<div className="text-xs text-slate-500">{formatARS(s.monthlyFee)}</div></td>
@@ -136,7 +136,7 @@ export default async function AbonosPage({ searchParams }: { searchParams: Promi
                   {overdue.map((o) => (
                     <li key={o.id} className="flex items-center justify-between py-2">
                       <Link href={`/abonos/${o.subscriptionId}`} className="text-indigo-700 hover:underline">
-                        {o.subscription.consortium.name} · {periodLabel(o.period)}
+                        {o.subscription.consorcio.nombre} · {periodLabel(o.period)}
                       </Link>
                       <span className="text-red-700">
                         {formatARS(o.amount)} · {daysOverdue(o, now)} días
@@ -156,7 +156,7 @@ export default async function AbonosPage({ searchParams }: { searchParams: Promi
                   {upcoming.map((o) => (
                     <li key={o.id} className="flex items-center justify-between py-2">
                       <Link href={`/abonos/${o.subscriptionId}`} className="text-indigo-700 hover:underline">
-                        {o.subscription.consortium.name} · {periodLabel(o.period)}
+                        {o.subscription.consorcio.nombre} · {periodLabel(o.period)}
                       </Link>
                       <span className="text-slate-700">
                         {formatARS(o.amount)} · {o.dueDate.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
@@ -170,7 +170,7 @@ export default async function AbonosPage({ searchParams }: { searchParams: Promi
 
           <div className="lg:col-span-1">
             <CreateSubscriptionForm
-              consortia={consortia}
+              consortia={consortia.map((c) => ({ id: c.id, name: c.nombre }))}
               plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyFee: p.monthlyFee.toString(), includedQueries: p.includedQueries }))}
               defaultConsortiumId={consorcio}
             />

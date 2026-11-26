@@ -6,7 +6,7 @@ import { adminOr403, badRequest, dateFromInput } from "@/lib/abonos-api";
 import { ensureInstallments } from "@/lib/abonos";
 
 const createSchema = z.object({
-  consortiumId: z.string().min(1),
+  consorcioId: z.string().min(1),
   planId: z.string().min(1),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!plan) return NextResponse.json({ error: "Plan inexistente" }, { status: 404 });
 
   const active = await prisma.subscription.count({
-    where: { consortiumId: d.consortiumId, status: { in: ["ACTIVE", "SUSPENDED"] } },
+    where: { consorcioId: d.consorcioId, status: { in: ["ACTIVE", "SUSPENDED"] } },
   });
   if (active > 0) {
     return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   const sub = await prisma.subscription.create({
     data: {
-      consortiumId: d.consortiumId,
+      consorcioId: d.consorcioId,
       planId: d.planId,
       startDate: dateFromInput(d.startDate),
       endDate: d.endDate ? dateFromInput(d.endDate) : null,

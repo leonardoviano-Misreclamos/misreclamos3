@@ -69,28 +69,28 @@ enum TicketEventType {
 }
 
 model Customer {
-  id           String      @id @default(cuid())
-  phone        String      @unique
-  name         String?
+  id          String     @id @default(cuid())
+  phone       String     @unique
+  name        String?
   // Moderación: si está setado, el bot no envía auto-respuestas para este cliente (agente responde manual)
-  botPausedAt  DateTime?
+  botPausedAt DateTime?
   // Información legal
-  dni          String? // DNI o CUIT/CUIL
-  email        String?
-  address      String? // Dirección completa
-  dateOfBirth  DateTime? // Fecha de nacimiento
-  notes        String? // Notas adicionales sobre el cliente
+  dni         String? // DNI o CUIT/CUIL
+  email       String?
+  address     String? // Dirección completa
+  dateOfBirth DateTime? // Fecha de nacimiento
+  notes       String? // Notas adicionales sobre el cliente
   /// Abonos: si el teléfono pertenece a un consorcio (administrador, miembro del consejo, intendente),
   /// las consultas que entren por WhatsApp se imputan al abono vigente de ese consorcio.
-  consortiumId String?
-  consortium   Consortium? @relation(fields: [consortiumId], references: [id], onDelete: SetNull)
-  tickets      Ticket[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  consorcioId String?
+  consorcio   Consorcio? @relation(fields: [consorcioId], references: [id], onDelete: SetNull)
+  tickets     Ticket[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([dni])
   @@index([email])
-  @@index([consortiumId])
+  @@index([consorcioId])
 }
 
 model AgentUser {
@@ -242,13 +242,6 @@ model CaseType {
 // Abonos de asesoramiento jurídico a consorcios / barrios cerrados / countries
 // ─────────────────────────────────────────────────────────────
 
-enum ConsortiumType {
-  EDIFICIO // Consorcio de propiedad horizontal (arts. 2037 y ss. CCyC)
-  BARRIO_CERRADO // Conjunto inmobiliario (arts. 2073 y ss. CCyC)
-  COUNTRY
-  OTRO
-}
-
 enum SubscriptionStatus {
   ACTIVE
   SUSPENDED // p. ej. por falta de pago: las consultas siguen entrando pero se marcan
@@ -261,25 +254,67 @@ enum InstallmentStatus {
   WAIVED // bonificada / condonada
 }
 
-/// Cliente institucional: consorcio, barrio cerrado o country
-model Consortium {
-  id            String         @id @default(cuid())
-  name          String
-  type          ConsortiumType @default(EDIFICIO)
-  cuit          String?        @unique
-  address       String?
-  locality      String? // Partido / barrio (ej: "Pilar", "CABA - Palermo")
-  unitsCount    Int? // Cantidad de unidades funcionales / lotes
-  administrator String? // Administradora (razón social o nombre)
-  contactName   String?
-  contactEmail  String?
-  notes         String?
-  customers     Customer[] // Teléfonos autorizados a consultar
-  subscriptions Subscription[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+// ── Consorcio y Administradora: MODELO COMPARTIDO con el módulo de cobranza de expensas ──
+// La tabla la crea la migración 20261126180000_add_cobranza_expensas (rama de cobranzas).
+// Esta copia es solo para compilar esta rama por separado; al integrar, queda la definición de
+// cobranzas + las relaciones `customers` y `subscriptions` de abajo.
+// (Omitidas aquí: Consorcio.unidades y Consorcio.cobranzas, que pertenecen a cobranzas.)
 
-  @@index([name])
+enum TipoConsorcio {
+  PROPIEDAD_HORIZONTAL // arts. 2037 y ss. CCyC
+  BARRIO_CERRADO // Conjunto inmobiliario, arts. 2073 y ss. CCyC
+  COUNTRY
+  CLUB_DE_CHACRAS
+  OTRO
+}
+
+enum Jurisdiccion {
+  CABA
+  PBA
+  OTRA
+}
+
+model Administradora {
+  id          String      @id @default(cuid())
+  razonSocial String
+  cuit        String?
+  matricula   String?
+  contacto    String?
+  email       String?
+  phone       String?
+  domicilio   String?
+  notes       String?
+  consorcios  Consorcio[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Consorcio {
+  id                           String          @id @default(cuid())
+  nombre                       String
+  tipo                         TipoConsorcio   @default(PROPIEDAD_HORIZONTAL)
+  cuit                         String?         @unique
+  domicilio                    String?
+  localidad                    String?
+  cantidadUnidades             Int?
+  contactoNombre               String?
+  contactoEmail                String?
+  jurisdiccion                 Jurisdiccion    @default(CABA)
+  administradoraId             String?
+  administradora               Administradora? @relation(fields: [administradoraId], references: [id])
+  tasaMoratoriaAnual           Decimal         @default(0) @db.Decimal(7, 3)
+  tasaPunitoriaAnual           Decimal         @default(0) @db.Decimal(7, 3)
+  diaVencimiento               Int             @default(10)
+  prescripcionMeses            Int             @default(24)
+  honorariosExtrajudicialesPct Decimal?        @db.Decimal(5, 2)
+  notes                        String?
+  createdAt                    DateTime        @default(now())
+  updatedAt                    DateTime        @updatedAt
+  // ── Relaciones que agrega el módulo de abonos ──
+  customers                    Customer[] // Teléfonos de WhatsApp autorizados a consultar
+  subscriptions                Subscription[]
+
+  @@index([administradoraId])
 }
 
 /// Plan de abono (catálogo): precio mensual y consultas incluidas
@@ -302,8 +337,8 @@ model AdvisoryPlan {
 /// para que un cambio en el catálogo no altere contratos vigentes.
 model Subscription {
   id              String             @id @default(cuid())
-  consortiumId    String
-  consortium      Consortium         @relation(fields: [consortiumId], references: [id], onDelete: Cascade)
+  consorcioId     String
+  consorcio       Consorcio          @relation(fields: [consorcioId], references: [id], onDelete: Cascade)
   planId          String
   plan            AdvisoryPlan       @relation(fields: [planId], references: [id])
   status          SubscriptionStatus @default(ACTIVE)
@@ -320,7 +355,7 @@ model Subscription {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  @@index([consortiumId])
+  @@index([consorcioId])
   @@index([status])
 }
 

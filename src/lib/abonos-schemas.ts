@@ -16,14 +16,15 @@ export const planSchema = z.object({
 const opt = z.string().trim().optional().nullable().transform((v) => (v ? v : null));
 
 export const consortiumSchema = z.object({
-  name: z.string().trim().min(1),
-  type: z.enum(["EDIFICIO", "BARRIO_CERRADO", "COUNTRY", "OTRO"]).default("EDIFICIO"),
+  nombre: z.string().trim().min(1),
+  tipo: z.enum(["PROPIEDAD_HORIZONTAL", "BARRIO_CERRADO", "COUNTRY", "CLUB_DE_CHACRAS", "OTRO"]).default("PROPIEDAD_HORIZONTAL"),
+  jurisdiccion: z.enum(["CABA", "PBA", "OTRA"]).default("CABA"),
   cuit: opt,
-  address: opt,
-  locality: opt,
-  unitsCount: optNum(z.number().int().positive()),
-  administrator: opt,
-  contactName: opt,
-  contactEmail: opt,
+  domicilio: opt,
+  localidad: opt,
+  cantidadUnidades: optNum(z.number().int().positive()),
+  administradoraId: opt,
+  contactoNombre: opt,
+  contactoEmail: opt,
   notes: opt,
 });

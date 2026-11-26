@@ -9,6 +9,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const parsed = consortiumSchema.partial().safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.flatten());
-  const consortium = await prisma.consortium.update({ where: { id }, data: parsed.data });
-  return NextResponse.json({ consortium });
+  const consorcio = await prisma.consorcio.update({ where: { id }, data: parsed.data });
+  return NextResponse.json({ consorcio });
 }
