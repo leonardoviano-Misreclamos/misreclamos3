@@ -297,9 +297,13 @@ model Consorcio {
   id                 String           @id @default(cuid())
   nombre             String
   tipo               TipoConsorcio    @default(PROPIEDAD_HORIZONTAL)
-  cuit               String?
+  cuit               String?          @unique
   domicilio          String?
   localidad          String?
+  /// Cantidad de unidades/lotes (dato comercial; puede diferir de las UF cargadas)
+  cantidadUnidades   Int?
+  contactoNombre     String?
+  contactoEmail      String?
   jurisdiccion       Jurisdiccion     @default(CABA)
   administradoraId   String?
   administradora     Administradora?  @relation(fields: [administradoraId], references: [id])
@@ -311,8 +315,6 @@ model Consorcio {
   diaVencimiento     Int              @default(10)
   /// Plazo de prescripción a alertar, en meses (configurable: ver supuestos)
   prescripcionMeses  Int              @default(24)
-  /// Abono mensual de asesoramiento jurídico (null = sin abono)
-  abonoMensual       Decimal?         @db.Decimal(14, 2)
   /// Honorarios pactados extrajudiciales (%) sobre lo cobrado
   honorariosExtrajudicialesPct Decimal? @db.Decimal(5, 2)
   notes              String?

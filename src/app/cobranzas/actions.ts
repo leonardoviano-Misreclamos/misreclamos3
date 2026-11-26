@@ -69,14 +69,19 @@ const consorcioSchema = z.object({
   tasaPunitoriaAnual: num.min(0).max(500),
   diaVencimiento: num.int().min(1).max(31),
   prescripcionMeses: num.int().min(1).max(240),
-  abonoMensual: opt.transform((v) => (v ? Number(v) : null)),
   honorariosExtrajudicialesPct: opt.transform((v) => (v ? Number(v) : null)),
+  cantidadUnidades: opt.transform((v) => (v ? parseInt(v, 10) : null)),
+  contactoNombre: opt,
+  contactoEmail: opt,
   notes: opt,
 });
 
 export async function crearConsorcio(fd: FormData) {
   await requireAdminAction();
   const data = form(consorcioSchema, fd);
+  if (data.cuit && (await prisma.consorcio.findUnique({ where: { cuit: data.cuit } }))) {
+    throw new Error(`Ya existe un consorcio con CUIT ${data.cuit}`);
+  }
   const c = await prisma.consorcio.create({ data });
   redirect(`/cobranzas/consorcios/${c.id}`);
 }

@@ -13,8 +13,10 @@ type Defaults = {
   tasaPunitoriaAnual?: string | number;
   diaVencimiento?: number;
   prescripcionMeses?: number;
-  abonoMensual?: string | number | null;
   honorariosExtrajudicialesPct?: string | number | null;
+  cantidadUnidades?: number | null;
+  contactoNombre?: string | null;
+  contactoEmail?: string | null;
   notes?: string | null;
 };
 
@@ -61,6 +63,12 @@ export function ConsorcioFields({
           ))}
         </select>
       </Field>
+      <Field label="Contacto (consejo / referente)">
+        <input name="contactoNombre" defaultValue={d.contactoNombre ?? ""} className={inputCls} />
+      </Field>
+      <Field label="Email de contacto">
+        <input name="contactoEmail" type="email" defaultValue={d.contactoEmail ?? ""} className={inputCls} />
+      </Field>
       <Field label="Domicilio">
         <input name="domicilio" defaultValue={d.domicilio ?? ""} className={inputCls} />
       </Field>
@@ -79,8 +87,8 @@ export function ConsorcioFields({
       <Field label="Alerta de prescripción (meses)" hint="24 = criterio art. 2562 inc. c; 60 = art. 2560">
         <input name="prescripcionMeses" type="number" min="1" max="240" defaultValue={d.prescripcionMeses ?? 24} className={inputCls} />
       </Field>
-      <Field label="Abono mensual asesoramiento ($)">
-        <input name="abonoMensual" type="number" step="0.01" min="0" defaultValue={d.abonoMensual != null ? String(d.abonoMensual) : ""} className={inputCls} />
+      <Field label="Cantidad de unidades / lotes">
+        <input name="cantidadUnidades" type="number" min="0" defaultValue={d.cantidadUnidades ?? ""} className={inputCls} />
       </Field>
       <Field label="Honorarios extrajudiciales (%)">
         <input

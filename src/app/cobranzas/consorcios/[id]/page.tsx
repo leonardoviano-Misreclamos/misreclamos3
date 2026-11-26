@@ -197,7 +197,6 @@ export default async function ConsorcioPage({ params }: { params: Promise<{ id: 
                       ...consorcio,
                       tasaMoratoriaAnual: String(consorcio.tasaMoratoriaAnual),
                       tasaPunitoriaAnual: String(consorcio.tasaPunitoriaAnual),
-                      abonoMensual: consorcio.abonoMensual != null ? String(consorcio.abonoMensual) : null,
                       honorariosExtrajudicialesPct:
                         consorcio.honorariosExtrajudicialesPct != null ? String(consorcio.honorariosExtrajudicialesPct) : null,
                     }}

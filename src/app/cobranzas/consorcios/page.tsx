@@ -6,7 +6,6 @@ import { Card, Field, SubNav, inputCls, btnCls } from "@/components/cobranzas/ui
 import { ConsorcioFields } from "@/components/cobranzas/ConsorcioFields";
 import { requireCobranzasAccess } from "@/lib/expensas/data";
 import { TIPO_CONSORCIO_LABEL } from "@/lib/expensas/estados";
-import { formatARS } from "@/lib/expensas/liquidacion";
 import { crearAdministradora, crearConsorcio } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -51,8 +50,7 @@ export default async function ConsorciosPage() {
                         <th className="py-2 pr-3">Tipo</th>
                         <th className="py-2 pr-3">Administradora</th>
                         <th className="py-2 pr-3 text-right">Unidades</th>
-                        <th className="py-2 pr-3 text-right">Cobranzas activas</th>
-                        <th className="py-2 text-right">Abono</th>
+                        <th className="py-2 text-right">Cobranzas activas</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -69,8 +67,7 @@ export default async function ConsorciosPage() {
                           <td className="py-2 pr-3 text-xs">{TIPO_CONSORCIO_LABEL[c.tipo]}</td>
                           <td className="py-2 pr-3 text-xs">{c.administradora?.razonSocial ?? "—"}</td>
                           <td className="py-2 pr-3 text-right">{c._count.unidades}</td>
-                          <td className="py-2 pr-3 text-right">{c._count.cobranzas}</td>
-                          <td className="py-2 text-right text-xs">{c.abonoMensual ? formatARS(Number(c.abonoMensual)) : "—"}</td>
+                          <td className="py-2 text-right">{c._count.cobranzas}</td>
                         </tr>
                       ))}
                     </tbody>

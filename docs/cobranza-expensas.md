@@ -30,7 +30,7 @@ Al registrar certificado o ejecución se guarda en el historial la liquidación 
 ## Pendiente (próximas versiones)
 
 - Importar la deuda desde el Excel o el PDF de la administradora.
-- Facturación del abono mensual y de los honorarios.
+- Facturación de honorarios (el abono mensual vive en el módulo de abonos, que referencia a `Consorcio`).
 - Tasas variables (BNA activa o pasiva BIP) por período.
 - Portal o reporte mensual para el consorcio y la administradora.
 - Envío de intimaciones por WhatsApp o email usando la integración que ya existe.

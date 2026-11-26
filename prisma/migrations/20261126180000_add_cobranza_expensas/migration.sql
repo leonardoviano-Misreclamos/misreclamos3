@@ -38,13 +38,15 @@ CREATE TABLE "Consorcio" (
     "cuit" TEXT,
     "domicilio" TEXT,
     "localidad" TEXT,
+    "cantidadUnidades" INTEGER,
+    "contactoNombre" TEXT,
+    "contactoEmail" TEXT,
     "jurisdiccion" "Jurisdiccion" NOT NULL DEFAULT 'CABA',
     "administradoraId" TEXT,
     "tasaMoratoriaAnual" DECIMAL(7,3) NOT NULL DEFAULT 0,
     "tasaPunitoriaAnual" DECIMAL(7,3) NOT NULL DEFAULT 0,
     "diaVencimiento" INTEGER NOT NULL DEFAULT 10,
     "prescripcionMeses" INTEGER NOT NULL DEFAULT 24,
-    "abonoMensual" DECIMAL(14,2),
     "honorariosExtrajudicialesPct" DECIMAL(5,2),
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -180,6 +182,9 @@ CREATE TABLE "CuotaPlan" (
 
     CONSTRAINT "CuotaPlan_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Consorcio_cuit_key" ON "Consorcio"("cuit");
 
 -- CreateIndex
 CREATE INDEX "Consorcio_administradoraId_idx" ON "Consorcio"("administradoraId");
