@@ -147,6 +147,7 @@ function ReclamosSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
             <NavLink label="Casos" href="/casos" icon="folder" onNavigate={onClose} />
             <NavLink label="Abogados" href="/agentes" icon="users" onNavigate={onClose} />
             <NavLink label="Clientes" href="/clientes" icon="users" onNavigate={onClose} />
+            <NavLink label="Abonos" href="/abonos" icon="briefcase" onNavigate={onClose} />
             <NavLink label="Configuración" href="/configuracion" icon="settings" onNavigate={onClose} />
             <NavLink label="Usuarios acceso" href="/configuracion/usuarios" icon="users" onNavigate={onClose} />
           </>

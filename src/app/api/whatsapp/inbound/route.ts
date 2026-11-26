@@ -5,6 +5,7 @@ import { sendWhatsAppMessage } from "@/lib/builderbot";
 import { generateTicketCode } from "@/lib/tickets";
 import { uploadToBlob, getFileExtension } from "@/lib/blob";
 import { summarizeConversation, classifyLegalType, transcribeAudio } from "@/lib/openai";
+import { findSubscriptionForCustomer } from "@/lib/abonos";
 // Using string literals instead of Prisma enums for compatibility
 
 // Schema para el formato de BuilderBot.cloud (permisivo: from puede venir como número, body puede faltar)
@@ -278,10 +279,19 @@ async function processIncomingMessage({ eventName, data }: { eventName: string; 
   const isNewTicket = !ticket;
 
   if (!ticket) {
+    // Abonos: si el teléfono pertenece a un consorcio con abono vigente, la consulta se imputa a ese abono
+    let subscriptionId: string | null = null;
+    try {
+      const sub = await findSubscriptionForCustomer(customer.id);
+      subscriptionId = sub?.id ?? null;
+    } catch (err) {
+      console.error("[abonos] No se pudo resolver el abono del cliente:", err);
+    }
     ticket = await prisma.ticket.create({
       data: {
         code: generateTicketCode(),
         customerId: customer.id,
+        subscriptionId,
         contactName: contactName,
         title: actualMessage.split(" ").slice(0, 8).join(" ") || "Consulta",
         status: "OPEN",
