@@ -136,6 +136,15 @@ function ReclamosSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 
         <div className="my-2 border-t border-white/10" />
 
+        {navReady && role !== "CORRESPONDENT" ? (
+          <>
+            <SectionTitle>Expensas</SectionTitle>
+            <NavLink label="Cobranzas" href="/cobranzas" icon="briefcase" onNavigate={onClose} />
+            <NavLink label="Consorcios y barrios" href="/cobranzas/consorcios" icon="home" onNavigate={onClose} />
+            <div className="my-2 border-t border-white/10" />
+          </>
+        ) : null}
+
         <SectionTitle>Por tipo de caso</SectionTitle>
         <CaseTypesNavLinks onNavigate={onClose} />
 

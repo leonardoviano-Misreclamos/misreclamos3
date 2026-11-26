@@ -103,6 +103,7 @@ model AgentUser {
   especializacion String?  // Especialización legal (ej: "Derecho Laboral", "Derecho Civil")
   tickets        Ticket[]  @relation("AgentAssignments")
   ticketReads    TicketRead[]
+  cobranzas      CobranzaExpensas[] @relation("CobranzaAsignada")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
@@ -225,4 +226,254 @@ model CaseType {
   updatedAt DateTime @updatedAt
 
   @@index([order])
+}
+
+// ============================================================================
+// MÓDULO COBRANZA DE EXPENSAS (consorcios PH, barrios cerrados, countries)
+// Encuadre: arts. 2044-2072 CCyC (PH), 2073-2086 (conjuntos inmobiliarios),
+// art. 2048 (certificado de deuda como título ejecutivo), art. 2050 (obligados).
+// ============================================================================
+
+enum TipoConsorcio {
+  PROPIEDAD_HORIZONTAL
+  BARRIO_CERRADO
+  COUNTRY
+  CLUB_DE_CHACRAS
+  OTRO
+}
+
+enum Jurisdiccion {
+  CABA
+  PBA
+  OTRA
+}
+
+/// Art. 2050 CCyC: obligados al pago (propietario y poseedor por cualquier título).
+enum RolDeudor {
+  PROPIETARIO
+  COPROPIETARIO
+  POSEEDOR
+  USUFRUCTUARIO
+  HEREDERO
+  OTRO
+}
+
+enum ConceptoExpensa {
+  ORDINARIA
+  EXTRAORDINARIA
+  FONDO_RESERVA
+  OTRO
+}
+
+enum EstadoCobranza {
+  DETECTADA
+  INTIMACION_EXTRAJUDICIAL
+  CARTA_DOCUMENTO
+  CERTIFICADO_DEUDA
+  EJECUCION
+  PLAN_DE_PAGO
+  CANCELADA
+  ARCHIVADA
+}
+
+model Administradora {
+  id          String      @id @default(cuid())
+  razonSocial String
+  cuit        String?
+  /// Matrícula RPA (CABA, Ley 941) o registro provincial, si corresponde
+  matricula   String?
+  contacto    String?
+  email       String?
+  phone       String?
+  domicilio   String?
+  notes       String?
+  consorcios  Consorcio[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+/// Cliente del estudio: consorcio de PH o conjunto inmobiliario.
+model Consorcio {
+  id                 String           @id @default(cuid())
+  nombre             String
+  tipo               TipoConsorcio    @default(PROPIEDAD_HORIZONTAL)
+  cuit               String?          @unique
+  domicilio          String?
+  localidad          String?
+  /// Cantidad de unidades/lotes (dato comercial; puede diferir de las UF cargadas)
+  cantidadUnidades   Int?
+  contactoNombre     String?
+  contactoEmail      String?
+  jurisdiccion       Jurisdiccion     @default(CABA)
+  administradoraId   String?
+  administradora     Administradora?  @relation(fields: [administradoraId], references: [id])
+  /// Tasa nominal anual (%) de interés moratorio fijada por reglamento/asamblea
+  tasaMoratoriaAnual Decimal          @default(0) @db.Decimal(7, 3)
+  /// Tasa nominal anual (%) de interés punitorio, si el reglamento la prevé
+  tasaPunitoriaAnual Decimal          @default(0) @db.Decimal(7, 3)
+  /// Día del mes de vencimiento habitual de la expensa (para sugerir vencimientos)
+  diaVencimiento     Int              @default(10)
+  /// Plazo de prescripción a alertar, en meses (configurable: ver supuestos)
+  prescripcionMeses  Int              @default(24)
+  /// Honorarios pactados extrajudiciales (%) sobre lo cobrado
+  honorariosExtrajudicialesPct Decimal? @db.Decimal(5, 2)
+  notes              String?
+  unidades           UnidadFuncional[]
+  cobranzas          CobranzaExpensas[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([administradoraId])
+}
+
+/// Unidad funcional (PH) o lote (conjunto inmobiliario).
+model UnidadFuncional {
+  id            String           @id @default(cuid())
+  consorcioId   String
+  consorcio     Consorcio        @relation(fields: [consorcioId], references: [id], onDelete: Cascade)
+  /// Identificación: "UF 12 - 3° B", "Lote 145", etc.
+  identificacion String
+  /// Porcentual de participación en expensas
+  porcentual    Decimal?         @db.Decimal(8, 4)
+  /// Matrícula / folio real o partida inmobiliaria
+  matricula     String?
+  partida       String?
+  notes         String?
+  deudores      UnidadDeudor[]
+  deudas        DeudaPeriodo[]
+  cobranzas     CobranzaExpensas[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([consorcioId, identificacion])
+}
+
+model Deudor {
+  id                String         @id @default(cuid())
+  nombre            String
+  /// DNI / CUIT / CUIL
+  documento         String?
+  domicilioReal     String?
+  /// Domicilio para notificaciones (puede ser la propia UF)
+  domicilioNotificacion String?
+  email             String?
+  phone             String?
+  notes             String?
+  unidades          UnidadDeudor[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([documento])
+}
+
+model UnidadDeudor {
+  unidadId  String
+  deudorId  String
+  rol       RolDeudor       @default(PROPIETARIO)
+  unidad    UnidadFuncional @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  deudor    Deudor          @relation(fields: [deudorId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@id([unidadId, deudorId])
+}
+
+/// Deuda por período (mes de liquidación). Los intereses se calculan, no se guardan.
+model DeudaPeriodo {
+  id               String          @id @default(cuid())
+  unidadId         String
+  unidad           UnidadFuncional @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  /// Primer día del mes liquidado (ej: 2026-03-01 = expensa de marzo 2026)
+  periodo          DateTime        @db.Date
+  concepto         ConceptoExpensa @default(ORDINARIA)
+  monto            Decimal         @db.Decimal(14, 2)
+  fechaVencimiento DateTime        @db.Date
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([unidadId, periodo, concepto])
+  @@index([unidadId, fechaVencimiento])
+}
+
+/// Expediente de cobranza de una unidad (extrajudicial y judicial).
+model CobranzaExpensas {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  consorcioId       String
+  consorcio         Consorcio        @relation(fields: [consorcioId], references: [id])
+  unidadId          String
+  unidad            UnidadFuncional  @relation(fields: [unidadId], references: [id])
+  estado            EstadoCobranza   @default(DETECTADA)
+  asignadoAId       String?
+  asignadoA         AgentUser?       @relation("CobranzaAsignada", fields: [asignadoAId], references: [id])
+  // Datos judiciales (estado EJECUCION)
+  expedienteNumber  String?
+  juzgado           String?
+  fechaInicioJuicio DateTime?        @db.Date
+  notes             String?
+  eventos           CobranzaEvento[]
+  pagos             PagoExpensas[]
+  planes            PlanPago[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([consorcioId])
+  @@index([unidadId])
+  @@index([estado])
+}
+
+model CobranzaEvento {
+  id          String           @id @default(cuid())
+  cobranzaId  String
+  cobranza    CobranzaExpensas @relation(fields: [cobranzaId], references: [id], onDelete: Cascade)
+  estadoDesde EstadoCobranza?
+  estadoHasta EstadoCobranza?
+  /// Fecha del acto (envío de CD, firma de certificado, interposición de demanda)
+  fecha       DateTime         @db.Date
+  descripcion String
+  /// Datos del acto: nº de CD, acuse de recibo, monto certificado, etc.
+  data        Json?
+  createdById String?
+  createdAt   DateTime         @default(now())
+
+  @@index([cobranzaId, fecha])
+}
+
+model PagoExpensas {
+  id         String           @id @default(cuid())
+  cobranzaId String
+  cobranza   CobranzaExpensas @relation(fields: [cobranzaId], references: [id], onDelete: Cascade)
+  fecha      DateTime         @db.Date
+  monto      Decimal          @db.Decimal(14, 2)
+  medio      String?
+  notes      String?
+  createdAt  DateTime         @default(now())
+
+  @@index([cobranzaId, fecha])
+}
+
+model PlanPago {
+  id               String           @id @default(cuid())
+  cobranzaId       String
+  cobranza         CobranzaExpensas @relation(fields: [cobranzaId], references: [id], onDelete: Cascade)
+  fechaAcuerdo     DateTime         @db.Date
+  /// Monto total convenido (capital + intereses a la fecha del acuerdo, con quitas si las hubo)
+  montoTotal       Decimal          @db.Decimal(14, 2)
+  cantidadCuotas   Int
+  activo           Boolean          @default(true)
+  notes            String?
+  cuotas           CuotaPlan[]
+  createdAt        DateTime         @default(now())
+}
+
+model CuotaPlan {
+  id               String    @id @default(cuid())
+  planId           String
+  plan             PlanPago  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  numero           Int
+  fechaVencimiento DateTime  @db.Date
+  monto            Decimal   @db.Decimal(14, 2)
+  pagadaAt         DateTime? @db.Date
+
+  @@unique([planId, numero])
 }

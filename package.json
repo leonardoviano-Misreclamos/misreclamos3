@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "import-legado": "tsx scripts/import-legado.ts",
     "db:reset-data": "tsx scripts/borrar-todos-datos.ts",
-    "bootstrap-admin": "tsx scripts/crear-usuario-admin.ts"
+    "bootstrap-admin": "tsx scripts/crear-usuario-admin.ts",
+    "test:expensas": "tsx scripts/test-liquidacion.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",
